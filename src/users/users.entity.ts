@@ -1,7 +1,8 @@
 // users/entities/user.entity.ts
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, DeleteDateColumn } from 'typeorm';
 import { UserRole } from '../common/userRole.enum';
 import { CURRENT_TIMESTAMP } from '../common/constants';
+import { Exclude } from 'class-transformer';
 
 
 @Entity('users')
@@ -15,10 +16,11 @@ export class User {
   @Column({ type: 'varchar', unique: true, length: 150 })
   username: string;
 
-  @Column({ type: 'enum', enum: UserRole, default: UserRole.STUDENT })
+  @Column({ type: 'enum', enum: UserRole, default: UserRole.STUDENT})
   role: UserRole;
 
-  @Column({ type: 'varchar', length: 4 })
+  @Exclude()
+  @Column({type: 'varchar', nullable: true})
   password: string;
 
   @CreateDateColumn({type: 'timestamp', default : ()=> CURRENT_TIMESTAMP})
@@ -26,6 +28,9 @@ export class User {
 
   @UpdateDateColumn({type: 'timestamp', default : ()=> CURRENT_TIMESTAMP, onUpdate: CURRENT_TIMESTAMP})
   updatedAt: Date;
+
+  @DeleteDateColumn({ name: 'deleted_at', nullable: true })
+  deletedAt: Date;
 
 //   @OneToMany(() => Video, (video) => video.id)
 //   video: Video[];
