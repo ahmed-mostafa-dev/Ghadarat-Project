@@ -3,7 +3,6 @@ import { UsersService } from "./users.service";
 import { CreateUserDto } from "./dtos/create-user.dto";
 import { User } from "./users.entity";
 import { UpdateUserDto } from "./dtos/update-user.dto";
-import * as types from "../common/types";
 import { CurrentUser } from "./decorators/current-user.decorator";
 import { UserRole } from "../common/userRole.enum";
 import { Roles } from "./decorators/user-role.decorator";
@@ -15,27 +14,31 @@ import { AuthGuard } from "../common/guards/auth.guard";
 export class UsersController {
 constructor(private readonly usersService: UsersService){}
     
-
+@UseGuards(AuthGuard)
 @Get()
+@Roles(UserRole.ADMIN, UserRole.ASSESSOR, UserRole.VERIFIER)
 public getAllUsers() {
     return this.usersService.findAllUsers();
 }
 
+@UseGuards(AuthGuard)
 @Get(':id')
+@Roles(UserRole.ADMIN, UserRole.ASSESSOR, UserRole.VERIFIER)
 public getCurrentUser(
     @Param('id',ParseUUIDPipe) id: string): Promise<User> {
     return this.usersService.getCurrentUser(id);
 }
 
+@UseGuards(AuthGuard)
 @Post()
-// @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.ADMIN)
+@Roles(UserRole.STUDENT, UserRole.ADMIN, UserRole.VERIFIER)
 public createUser( @Body() payload: CreateUserDto) {
     return this.usersService.createUser(payload);
 }
 
-
+@UseGuards(AuthGuard)
 @Patch(':id')
+@Roles(UserRole.ADMIN, UserRole.ASSESSOR, UserRole.VERIFIER)
 public updateUser(
     @Param('id',ParseUUIDPipe) id: string,
     @Body() payload: UpdateUserDto) {
@@ -44,16 +47,11 @@ public updateUser(
 
 @UseGuards(AuthGuard)
 @Delete(':id')
+@Roles(UserRole.ADMIN, UserRole.ASSESSOR, UserRole.VERIFIER)
 public deleteUser(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() payload:JWTUserPayload) {
-    // const payload = {
-    //     id,
-    //     userType: UserRole.ADMIN
-    // }
-    return this.usersService.deleteUser(id,
-        payload
-    );
+    return this.usersService.deleteUser(id, payload);
 }
 
 }
