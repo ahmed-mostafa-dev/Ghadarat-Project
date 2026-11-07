@@ -1,29 +1,24 @@
 import { ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { User } from "./users.entity";
-import { Not, Repository } from "typeorm";
+import { ILike, Not, Repository } from "typeorm";
 import { CreateUserDto } from "./dtos/create-user.dto";
 import { UpdateUserDto } from "./dtos/update-user.dto";
 import * as bcrypt from 'bcrypt';
 import { JWTUserPayload } from "../common/types";
 import { UserRole } from "../common/userRole.enum";
 
-// import { AuthService } from "../auth/auth.service";
+
 
 
 
 @Injectable()
 export class UsersService {
-    create(arg0: { username: string; password: string; }) {
-        throw new Error("Method not implemented.");
-    }
-
-   
 
     constructor(
         @InjectRepository(User)
         private readonly userRepository: Repository<User>,
-        // private readonly authService: AuthService
+        
     ) {}
 
     public findAllUsers() : Promise<User[]> {
@@ -49,7 +44,8 @@ export class UsersService {
             role: dto.role
         });
         const saved = await this.userRepository.save(newUser);
-        return { ...saved}
+        const {password: _, ...result} = saved;
+        return result;
 
     }
   
@@ -61,7 +57,7 @@ export class UsersService {
      * @returns updated user
      */
     public async updateUser(id: string, dto: UpdateUserDto) {
-    const { username, password } = dto;
+    const { username, password, name } = dto;
     const user = await this.userRepository.findOne({ where: { id } });
     if (!user) throw new NotFoundException(`User id ${id} is not found`);
 
@@ -77,8 +73,13 @@ export class UsersService {
         user.password = await this.hashPassword(password)
     }
 
+    if (name) {
+        user.name = name;
+    }
+
     const saved = await this.userRepository.save(user);
-    return saved
+    const {password: _, ...result} = saved;
+    return result;
 }
     
     /**
@@ -91,9 +92,13 @@ export class UsersService {
         const user = await this.userRepository.findOne({ where: { id: userId } });
         if (!user) throw new NotFoundException(`User id ${userId} is not found`);
         
-        if (user.id !== payload?.id &&
-            payload?.userType !== UserRole.ADMIN &&
-            payload?.userType !== UserRole.VERIFIER) {
+        const requesterId = payload.id || payload.sub;
+        const requesterRole = payload.role || payload.userType;
+
+       if (
+        user.id !== requesterId &&
+        requesterRole !== UserRole.ADMIN &&
+        requesterRole !== UserRole.VERIFIER) {
             throw new ForbiddenException('You are not allowed to delete this user');
             }
 
@@ -108,12 +113,36 @@ export class UsersService {
      * @param id user id
      * @returns current user
      */
-    public async getCurrentUser(id: string ): Promise<User> {
+    public async getUserById(id: string ): Promise<User> {
         const user = await this.userRepository.findOne({ where: {id}});
         if (!user) throw new NotFoundException('User is not found');
         return user;
     }
 
+
+    //! TODO: Search for Students by name, username
+    public async searchStudents(name: string){
+        const searchName = name?.trim()
+        if(!searchName || searchName.length === 0) {
+            return [];
+        }
+        
+        return await this.userRepository.find({
+            where: {
+                name: ILike(`%${searchName}%`),
+                role: UserRole.STUDENT
+            },
+            select: {
+                id: true,
+                name: true,
+                username: true
+            },
+            take: 10,
+            order: {
+                name: 'ASC'
+            }
+        });
+    }
 
     /**
      * 

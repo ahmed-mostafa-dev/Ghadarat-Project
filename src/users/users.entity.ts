@@ -1,11 +1,12 @@
 // users/entities/user.entity.ts
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, DeleteDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, DeleteDateColumn, Index } from 'typeorm';
 import { UserRole } from '../common/userRole.enum';
 import { CURRENT_TIMESTAMP } from '../common/constants';
 import { Exclude } from 'class-transformer';
 
 
 @Entity('users')
+@Index(['name', 'role'])
 export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;

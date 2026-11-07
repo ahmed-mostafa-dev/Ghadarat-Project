@@ -1,8 +1,11 @@
 import { UserRole } from "./userRole.enum";
 
 export type JWTUserPayload = {
-    id:string;
-    userType: UserRole;
+    sub:string;
+    role:string;
+    id?:string;
+    userType?: UserRole;
+    username?:string;
 }
 
 
