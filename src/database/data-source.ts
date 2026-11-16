@@ -13,8 +13,15 @@ export const dataSourceOptions: DataSourceOptions = {
     migrations: ['dist/database/migrations/*.js'],
     synchronize: process.env.NODE_ENV !== 'production',
     logging: process.env.NODE_ENV !== 'production',
-}
 
+// connection pool configuration
+extra: {
+    max: 20,                       // الحد الأقصى للاتصالات المتزامنة المفتوحة
+    min: 5,                        // الحد الأدنى للاتصالات الجاهزة دائماً
+    idleTimeoutMillis: 30000,      // مهلة غلق الاتصال الخامل
+    connectionTimeoutMillis: 5000, // مهلة انتظار السيرفر للحصول على اتصال قبل إرجاع Timeout
+}
+}
 const dataSource = new DataSource(dataSourceOptions);
 
 

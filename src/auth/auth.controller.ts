@@ -3,6 +3,7 @@ import { AuthService } from "./auth.service";
 import { RegisterDto } from "./dtos/register.dto";
 import { LoginDto } from "./dtos/login.dto";
 import { Public } from "../common/public.decorator";
+import { Throttle } from "@nestjs/throttler";
 
 
 @Controller('auth')
@@ -19,6 +20,7 @@ public register(@Body() body: RegisterDto) {
 
 
 @Public()
+@Throttle({default: {limit: 4, ttl: 60000}})
 @Post('login')
 public login(@Body() body: LoginDto) {
     return this.authService.login(body);

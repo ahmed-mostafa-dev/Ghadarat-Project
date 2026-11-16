@@ -7,7 +7,8 @@ import { dataSourceOptions } from './database/data-source';
 import { APP_GUARD } from '@nestjs/core';
 import { AuthGuard } from './common/guards/auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
-
+import { AcademicsModule } from './academics/academics.module';
+import { ThrottlerModule } from '@nestjs/throttler';
 
 
 
@@ -15,6 +16,7 @@ import { RolesGuard } from './common/guards/roles.guard';
 @Module({
   imports: [UsersModule,
      AuthModule,
+     AcademicsModule,
     ConfigModule.forRoot({
       isGlobal: true,
       ignoreEnvFile: process.env.NODE_ENV === 'production', 
@@ -23,6 +25,9 @@ import { RolesGuard } from './common/guards/roles.guard';
     TypeOrmModule.forRootAsync({
     useFactory: ()=> dataSourceOptions,
 }),
+    ThrottlerModule.forRoot([
+      { ttl: 60000, limit: 100 }
+  ]),
 ],
   controllers: [],
   providers: [
