@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { dataSourceOptions } from './database/data-source';
 import { APP_GUARD } from '@nestjs/core';
@@ -9,7 +9,8 @@ import { AuthGuard } from './common/guards/auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { AcademicsModule } from './academics/academics.module';
 import { ThrottlerModule } from '@nestjs/throttler';
-
+import { CacheModule } from '@nestjs/cache-manager';
+import { redisStore } from 'cache-manager-redis-yet';
 
 
 
@@ -21,6 +22,21 @@ import { ThrottlerModule } from '@nestjs/throttler';
       isGlobal: true,
       ignoreEnvFile: process.env.NODE_ENV === 'production', 
       envFilePath: `.env.${process.env.NODE_ENV || 'development'}`,
+    }),
+    CacheModule.registerAsync({
+      isGlobal: true,
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: async (configService: ConfigService) => ({
+        store : await redisStore({
+          socket:{
+            host: configService.get<string>('REDIS_HOST') || 'localhost',
+            port: configService.get<number>('REDIS_PORT') || 6379,
+          }
+        }),
+
+        ttl: configService.get<number>('CACHE_TTL') || 60 * 60 * 1000,
+      }),
     }),
     TypeOrmModule.forRootAsync({
     useFactory: ()=> dataSourceOptions,

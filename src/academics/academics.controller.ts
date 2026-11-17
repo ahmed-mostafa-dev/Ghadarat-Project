@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards, UseInterceptors } from "@nestjs/common";
 import { AcademicsService } from "./academics.service";
 import { CreateClassroomDto } from "./dtos/create-classroom.dto";
 import { CurrentUser } from "../users/decorators/current-user.decorator";
@@ -7,52 +7,58 @@ import { AuthGuard } from "../common/guards/auth.guard";
 import { CreateAcademicYearDto } from "./dtos/create-academic-year.dto";
 import { QueryClassroomDto } from "./dtos/query-classroom.dto";
 import { UpdateClassroomDto } from "./dtos/update-classroom.dto";
+import { CacheInterceptor, CacheTTL } from "@nestjs/cache-manager";
+import { UpdateAcademicYearDto } from "./dtos/update-academic-year.dto";
 
+@UseGuards(AuthGuard)
 @Controller('academics')
 export class AcademicsController {
     constructor(
         private readonly academicsService: AcademicsService
     ) {}
     
-    @UseGuards(AuthGuard)
+    //===================================================================
+    // Classroom Routes
+    //===================================================================
     @Post('classroom')
     public async createClassroom(@Body() body: CreateClassroomDto, @CurrentUser() payload: types.JWTUserPayload) {
         return this.academicsService.createClassroom(body, payload.sub);
     }
 
-    @UseGuards(AuthGuard)
+
     @Get('classroom')
     public async getClassroom(@Query() dto: QueryClassroomDto){
         return this.academicsService.getClassroom(dto);
     }
 
-    @UseGuards(AuthGuard)
+
     @Get('classroom/:id')
-    public async getClassroomById(@Param('id') id: string){
+    public async getClassroomById(@Param('id', new ParseUUIDPipe()) id: string){
         return this.academicsService.getClassroomById(id);
     }
 
-    @UseGuards(AuthGuard)
+  
     @Patch('classroom/:id')
-    public async updateClassroom(@Param('id') id: string, @Body() body: UpdateClassroomDto){
+    public async updateClassroom(@Param('id', new ParseUUIDPipe()) id: string, @Body() body: UpdateClassroomDto){
         return this.academicsService.updateClassroom(id, body);
     }
 
-    @UseGuards(AuthGuard)
+
     @Delete('classroom/:id')
-    public async deleteClassroom(@Param('id') id: string){
+    public async deleteClassroom(@Param('id', new ParseUUIDPipe()) id: string){
         return this.academicsService.deleteClassroom(id);
     }
 
 //===================================================================
     // Academic Year Routes
-    @UseGuards(AuthGuard)
+//===================================================================
+
     @Post('academic-year')
     public async createAcademicYear(@Body() body: CreateAcademicYearDto) {
         return this.academicsService.createAcademicYear(body);
     }
 
-    @UseGuards(AuthGuard)
+
     @Get('academic-year')
     public async getAllAcademicYears(
         @Query('name') name?:string,
@@ -67,21 +73,21 @@ export class AcademicsController {
         );
     }
 
-    @UseGuards(AuthGuard)
+
     @Get('academic-year/:id')
-    public async getAcademicYearById(@Param('id') id: string) {
+    public async getAcademicYearById(@Param('id', new ParseUUIDPipe()) id: string) {
         return this.academicsService.getAcademicYearById(id);
     }
 
-    @UseGuards(AuthGuard)
+
     @Patch('academic-year/:id')
-    public async updateAcademicYear(@Param('id') id: string, @Body() body: CreateAcademicYearDto) {
+    public async updateAcademicYear(@Param('id', new ParseUUIDPipe()) id: string, @Body() body: UpdateAcademicYearDto) {
         return this.academicsService.updateAcademicYear(id, body);
     }
 
-    @UseGuards(AuthGuard)
+
     @Delete('academic-year/:id')
-    public async deleteAcademicYear(@Param('id') id: string) {
+    public async deleteAcademicYear(@Param('id', new ParseUUIDPipe()) id: string) {
         return this.academicsService.deleteAcademicYear(id);
     }
 }
