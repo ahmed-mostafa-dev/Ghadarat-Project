@@ -155,7 +155,15 @@ export class UsersService {
 
 
     public async findOneByUsername(username: string) {
-        return await this.userRepository.findOne({ where: { username } });
+        return await this.userRepository.findOne({ where: { username },
+        select: {
+            id: true,
+            name: true,
+            username: true,
+            password: true,
+            role: true,
+            classroomId: true
+        } });
     }
 
 }

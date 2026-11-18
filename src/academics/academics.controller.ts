@@ -25,6 +25,11 @@ export class AcademicsController {
         return this.academicsService.createClassroom(body, payload.sub);
     }
 
+    // new
+    @Post('classroom/students')
+    public async assignStudentsToClassroom(@Body() body: { classroomId: string, studentIds: string[] }) {
+        return this.academicsService.assignStudentToClassroom(body.classroomId, { studentIds: body.studentIds });
+    }
 
     @Get('classroom')
     public async getClassroom(@Query() dto: QueryClassroomDto){
@@ -37,7 +42,12 @@ export class AcademicsController {
         return this.academicsService.getClassroomById(id);
     }
 
-  
+    // new
+    @Get('classroom/:id/students')
+    public async getStudentsByClassroomId(@Param('id', new ParseUUIDPipe()) id: string){
+        return this.academicsService.getStudentsByClassroomId(id);
+    }
+
     @Patch('classroom/:id')
     public async updateClassroom(@Param('id', new ParseUUIDPipe()) id: string, @Body() body: UpdateClassroomDto){
         return this.academicsService.updateClassroom(id, body);

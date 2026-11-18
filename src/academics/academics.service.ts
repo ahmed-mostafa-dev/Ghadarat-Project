@@ -11,6 +11,7 @@ import { UpdateClassroomDto } from "./dtos/update-classroom.dto";
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { UpdateAcademicYearDto } from "./dtos/update-academic-year.dto";
+import { AssignStudentsDto } from "./dtos/assign-students.dto";
 
 @Injectable()
 export class AcademicsService {
@@ -52,6 +53,43 @@ if(!existingClassroom) {
 }
 
 }
+
+// new
+public async assignStudentToClassroom(classroomId: string, body: AssignStudentsDto) {
+  // 1. جلب الفصل + التحقق من وجود كل الطلاب المطلوبين في نفس اللحظة
+  const [classroom, users] = await Promise.all([
+    this.classroomRepository.findOne({ where: { id: classroomId } }), // تأكد من اسم الخاصية في DTO
+    Promise.all(body.studentIds.map(id => this.usersService.getUserById(id)))
+  ]);
+
+  if (!classroom) throw new NotFoundException('Classroom not found');
+  if (!users || users.length !== body.studentIds.length) {
+    throw new NotFoundException('One or more students not found');
+  }
+
+  // 2. إضافة مصفوفة الطلاب كلها لجدول الربط في استعلام واحد
+  try {
+    await this.classroomRepository
+      .createQueryBuilder()
+      .relation(Classroom, 'users')
+      .of(classroomId)
+      .add(body.studentIds); // .add() بتقبل Array مباشرة!
+  } catch (error: any) { // إضافة : any تحل خطأ error.code في TypeScript
+    if (error?.code === '23505') {
+      throw new ConflictException('One or more students are already assigned to this classroom');
+    }
+    throw error;
+  }
+
+  await this.bumpClassroomsVersion();
+
+  return {
+    message: 'Students assigned successfully',
+    classroomId,
+    studentIds: body.studentIds,
+  };
+}
+
 
 public async getClassroom(filterDto: QueryClassroomDto) {
   const { search, gradeLevel, term, track, page = 1, limit = 10 } = filterDto;
@@ -112,6 +150,21 @@ public async getClassroomById(id: string){
     if(!classroom) throw new NotFoundException('Classroom not found');
     await this.cacheManager.set(cacheKey, classroom, 60 * 60 * 24 * 1000); 
     return classroom;
+}
+// new
+public async getStudentsByClassroomId(classroomId: string) {
+    const classroom = await this.classroomRepository.findOne({
+      where: {id: classroomId}, 
+      relations: {users: true},
+      select: {users:
+         {id: true,
+           username: true, 
+           name: true
+          }
+         }
+    });
+    if(!classroom) throw new NotFoundException('Classroom not found');
+    return classroom.users;
 }
 
 public async updateClassroom(id: string, body: UpdateClassroomDto) {

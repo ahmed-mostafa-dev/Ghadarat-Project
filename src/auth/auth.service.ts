@@ -1,4 +1,4 @@
-import { ConflictException, Inject, Injectable } from "@nestjs/common";
+import { ConflictException, Inject, Injectable, UnauthorizedException } from "@nestjs/common";
 import { UsersService } from "../users/users.service";
 import { RegisterDto } from "./dtos/register.dto";
 import { JwtService } from "@nestjs/jwt";
@@ -50,21 +50,22 @@ public async login(loginDto: LoginDto){
 const {username, password} = loginDto;
 
 const user = await this.usersService.findOneByUsername(username);
-if(!user) throw new ConflictException('اسم المستخدم غير صحيح');
+if(!user) throw new UnauthorizedException('اسم المستخدم أو كلمة المرور غير صحيحة');
 
 
 const isPasswordValid = await bcrypt.compare(password, user.password);
 
-if(!isPasswordValid) throw new ConflictException('كلمة المرور غير صحيحة');
+if(!isPasswordValid) throw new UnauthorizedException('اسم المستخدم أو كلمة المرور غير صحيحة');
 
 const payload = {
     sub: user.id ,
     username: user.username,
-    role: user.role
+    role: user.role,
+    classroomId: user.classroomId
 };
-console.time('jwt');
+
 const accessToken = await this.jwtService.signAsync(payload)
-console.timeEnd('jwt');
+
 
 return {
     message: 'تم تسجيل الدخول بنجاح',
@@ -72,7 +73,8 @@ return {
     user:{ 
         id: user.id,
         username: user.username,
-        role: user.role
+        role: user.role,
+        classroomId: user.classroomId
     }
 }
 }
