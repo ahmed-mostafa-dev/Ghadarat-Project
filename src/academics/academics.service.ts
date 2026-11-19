@@ -3,7 +3,7 @@ import { UsersService } from "../users/users.service";
 import { CreateClassroomDto } from "./dtos/create-classroom.dto";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Classroom } from "./entities/classroom.entity";
-import { FindOptionsWhere, ILike, Not, Repository } from "typeorm";
+import { FindOptionsWhere, ILike, In, Not, Repository } from "typeorm";
 import { AcademicYear } from "./entities/academic-year.entity";
 import { CreateAcademicYearDto } from "./dtos/create-academic-year.dto";
 import { QueryClassroomDto } from "./dtos/query-classroom.dto";
@@ -12,6 +12,8 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { UpdateAcademicYearDto } from "./dtos/update-academic-year.dto";
 import { AssignStudentsDto } from "./dtos/assign-students.dto";
+import { UserRole } from "../common/userRole.enum";
+import { User } from "../users/users.entity";
 
 @Injectable()
 export class AcademicsService {
@@ -20,6 +22,8 @@ constructor(
     private readonly classroomRepository: Repository<Classroom>,
     @InjectRepository(AcademicYear)
     private readonly academicYearRepository: Repository<AcademicYear>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
     private readonly usersService: UsersService,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
 ) {}
@@ -55,40 +59,90 @@ if(!existingClassroom) {
 }
 
 // new
-public async assignStudentToClassroom(classroomId: string, body: AssignStudentsDto) {
-  // 1. جلب الفصل + التحقق من وجود كل الطلاب المطلوبين في نفس اللحظة
-  const [classroom, users] = await Promise.all([
-    this.classroomRepository.findOne({ where: { id: classroomId } }), // تأكد من اسم الخاصية في DTO
-    Promise.all(body.studentIds.map(id => this.usersService.getUserById(id)))
-  ]);
-
-  if (!classroom) throw new NotFoundException('Classroom not found');
-  if (!users || users.length !== body.studentIds.length) {
-    throw new NotFoundException('One or more students not found');
+public async assignStudentsToClassroom(
+  classroomId: string,
+  body: AssignStudentsDto,
+) {
+  // Validate input
+  if (!body.studentIds?.length) {
+    throw new BadRequestException(
+      'studentIds array cannot be empty',
+    );
   }
 
-  // 2. إضافة مصفوفة الطلاب كلها لجدول الربط في استعلام واحد
-  try {
-    await this.classroomRepository
-      .createQueryBuilder()
-      .relation(Classroom, 'users')
-      .of(classroomId)
-      .add(body.studentIds); // .add() بتقبل Array مباشرة!
-  } catch (error: any) { // إضافة : any تحل خطأ error.code في TypeScript
-    if (error?.code === '23505') {
-      throw new ConflictException('One or more students are already assigned to this classroom');
-    }
-    throw error;
+  // Remove duplicates
+  const uniqueStudentIds = [...new Set(body.studentIds)];
+
+  // Check classroom exists
+  await this.getClassroomById(classroomId);
+
+  // Get students
+  const users = await this.userRepository.find({
+    where: {
+      id: In(uniqueStudentIds),
+    },
+    select: {
+      id: true,
+      role: true,
+      classroomId: true,
+    },
+  });
+
+  // Validate all users exist
+  if (users.length !== uniqueStudentIds.length) {
+    throw new NotFoundException(
+      'One or more students were not found',
+    );
   }
 
+  // Validate roles
+  const invalidUser = users.find(
+    (user) => user.role !== UserRole.STUDENT,
+  );
+
+  if (invalidUser) {
+    throw new BadRequestException(
+      'Only students can be assigned to a classroom',
+    );
+  }
+
+  /**
+   * Prevent assigning students that
+   * already belong to another classroom
+   */
+  const assignedToAnotherClassroom = users.find(
+    (user) =>
+      user.classroomId &&
+      user.classroomId !== classroomId,
+  );
+
+  if (assignedToAnotherClassroom) {
+    throw new BadRequestException(
+      'One or more students are already assigned to another classroom',
+    );
+  }
+
+  // Bulk update
+  await this.userRepository.update(
+    {
+      id: In(uniqueStudentIds),
+    },
+    {
+      classroomId,
+    },
+  );
+
+  // Invalidate cache
   await this.bumpClassroomsVersion();
 
   return {
     message: 'Students assigned successfully',
     classroomId,
-    studentIds: body.studentIds,
+    assignedCount: uniqueStudentIds.length,
+    studentIds: uniqueStudentIds,
   };
 }
+
 
 
 public async getClassroom(filterDto: QueryClassroomDto) {
@@ -153,18 +207,22 @@ public async getClassroomById(id: string){
 }
 // new
 public async getStudentsByClassroomId(classroomId: string) {
-    const classroom = await this.classroomRepository.findOne({
-      where: {id: classroomId}, 
-      relations: {users: true},
-      select: {users:
-         {id: true,
-           username: true, 
-           name: true
-          }
-         }
-    });
-    if(!classroom) throw new NotFoundException('Classroom not found');
-    return classroom.users;
+  await this.getClassroomById(classroomId);
+
+  return this.userRepository.find({
+    where: {
+      classroomId,
+      role: UserRole.STUDENT,
+    },
+    select: {
+      id: true,
+      name: true,
+      username: true,
+    },
+    order: {
+      name: 'ASC',
+    },
+  });
 }
 
 public async updateClassroom(id: string, body: UpdateClassroomDto) {

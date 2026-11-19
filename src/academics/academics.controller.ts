@@ -9,6 +9,7 @@ import { QueryClassroomDto } from "./dtos/query-classroom.dto";
 import { UpdateClassroomDto } from "./dtos/update-classroom.dto";
 import { CacheInterceptor, CacheTTL } from "@nestjs/cache-manager";
 import { UpdateAcademicYearDto } from "./dtos/update-academic-year.dto";
+import { AssignStudentsDto } from "./dtos/assign-students.dto";
 
 @UseGuards(AuthGuard)
 @Controller('academics')
@@ -27,8 +28,8 @@ export class AcademicsController {
 
     // new
     @Post('classroom/students')
-    public async assignStudentsToClassroom(@Body() body: { classroomId: string, studentIds: string[] }) {
-        return this.academicsService.assignStudentToClassroom(body.classroomId, { studentIds: body.studentIds });
+    public async assignStudentsToClassroom(@Body() body: AssignStudentsDto) {
+        return this.academicsService.assignStudentsToClassroom(body.classroomId, body);
     }
 
     @Get('classroom')
@@ -44,7 +45,7 @@ export class AcademicsController {
 
     // new
     @Get('classroom/:id/students')
-    public async getStudentsByClassroomId(@Param('id', new ParseUUIDPipe()) id: string){
+    public async getStudentsByClassroomId(@Param('id', new ParseUUIDPipe()) id: string) {
         return this.academicsService.getStudentsByClassroomId(id);
     }
 
