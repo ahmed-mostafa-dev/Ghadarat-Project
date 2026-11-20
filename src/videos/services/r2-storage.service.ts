@@ -1,7 +1,18 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, BadRequestException } from "@nestjs/common";
 import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { ConfigService } from "@nestjs/config";
+import { v4 as uuidv4 } from 'uuid';
+
+
+
+const UPLOAD_EXPIRATION_URL = 300;
+const PLAYBACK_EXPIRATION_URL = 900;
+
+const VIDEO_MIME_TYPES: Record<string, string> = {
+    'video/mp4': 'mp4',
+    'video/webm': 'webm'
+};
 
 @Injectable()
 export class R2StorageService {
@@ -22,30 +33,43 @@ export class R2StorageService {
         });
     }
 
-    public async generateVideoUrl( fileKey: string, contentType: string): Promise<string> {
+    // Generate Upload URL
+    public async generateUploadUrl( fileKey: string, contentType: string): Promise<string> {
         const command = new PutObjectCommand({
             Bucket: this.bucketName,
             Key: fileKey,
             ContentType: contentType
         });
-        return getSignedUrl(this.s3Client, command, { expiresIn: 300 });
+        return getSignedUrl(this.s3Client, command, { expiresIn: UPLOAD_EXPIRATION_URL });
     }
 
 
-    public async getGeneratedVideoUrl(fileKey: string): Promise<string> {
+    // Generate Playback URL
+    public async generatePlaybackUrl(fileKey: string): Promise<string> {
        const command = new GetObjectCommand({
         Bucket: this.bucketName,
         Key: fileKey,
        });
-       return getSignedUrl(this.s3Client, command, { expiresIn: 900 });
+       return getSignedUrl(this.s3Client, command, { expiresIn: PLAYBACK_EXPIRATION_URL });
     }
 
 
+    // Delete Video
     public async deleteVideo(fileKey: string): Promise<void> {
         const command = new DeleteObjectCommand({
             Bucket: this.bucketName,
             Key: fileKey,
         });
         await this.s3Client.send(command);
+    }
+
+    //Video Key Generator
+    public generateVideoKey(contentType: string): string {
+         const extensions = VIDEO_MIME_TYPES[contentType];
+
+    if (!extensions) {
+        throw new BadRequestException('صيغة الفيديو غير مدعومة');
+    }
+    return `videos/${uuidv4()}.${extensions}`;
     }
 }
