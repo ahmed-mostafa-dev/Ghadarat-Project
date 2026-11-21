@@ -4,7 +4,7 @@ import { User } from "../../users/users.entity";
 
 @Entity('videos')
 @Index(['classroomId', 'status'])
-@Index(['studentId', 'competencyId'])
+@Index(['studentId', 'competencyName'])
 export class Video {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -16,7 +16,7 @@ export class Video {
   classroomId: string;
 
   @Column()
-  competencyId: string;
+  competencyName: string;
 
   @Column({ length: 255 })
   title: string;
