@@ -1,9 +1,11 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
 import { VideosService } from "./services/videos.service";
 import { RequestPresignedUrlDto } from "./dtos/request-presigned-url.dto";
 import { UserRole } from "../common/userRole.enum";
 import { QueryVideosDto } from "./dtos/query-videos.dto";
 import { ConfirmUploadDto } from "./dtos/confirm-upload.dto";
+import { AuthGuard } from "../common/guards/auth.guard";
+import { Roles } from "../users/decorators/user-role.decorator";
 
 @Controller('videos')
 export class VideosController {
@@ -11,6 +13,8 @@ export class VideosController {
         private readonly videosService: VideosService
     ) {}
 
+    @UseGuards(AuthGuard)
+    @Roles(UserRole.STUDENT, UserRole.ASSESSOR, UserRole.VERIFIER, UserRole.ADMIN)
     @Post('upload-url')
     public async requestUpload(
         @Body() body: RequestPresignedUrlDto,
@@ -26,7 +30,8 @@ export class VideosController {
         });
     }
 
-
+    @UseGuards(AuthGuard)
+    @Roles(UserRole.ASSESSOR, UserRole.VERIFIER, UserRole.ADMIN)
     @Patch('confirm-upload')
     public async confirmUpload(
         @Body() body: ConfirmUploadDto,
@@ -38,7 +43,8 @@ export class VideosController {
         );
     }
 
-
+    @UseGuards(AuthGuard)
+    @Roles(UserRole.STUDENT, UserRole.ASSESSOR, UserRole.VERIFIER, UserRole.ADMIN)
     @Get(':id/playback')
     public async getPlaybackUrl(@Param('id') videoId: string, @Req() req: any) {
         return this.videosService.getPlaybackUrl(
@@ -49,13 +55,35 @@ export class VideosController {
     }
 
     // Get videos for the current user (student)
-    @Get('my-videos') 
+    @UseGuards(AuthGuard)
+    @Roles(UserRole.STUDENT)
+    @Get('student/my-videos') 
     public async getVideos(@Query() query: QueryVideosDto, @Req() req: any) {
       return this.videosService.getVideos(
         req.user.id,
         query,
       );
     }
+
+    @UseGuards(AuthGuard)
+    @Roles(UserRole.ASSESSOR, UserRole.VERIFIER, UserRole.ADMIN)
+    @Get('all-videos')
+    public async getAllVideos(@Query() query: QueryVideosDto, @Req() req: any) {
+        return this.videosService.getVideos(
+            req.user.id,
+            query
+        );
+    }
+
+
+    @Get('student/:studentId/videos')
+    public async getStudentVideos(@Param('studentId') studentId: string, @Query() query: QueryVideosDto, @Req() req: any) {
+        return this.videosService.getVideos(
+            studentId,
+            query
+        );
+    }
+
 
 
     @Delete(':id')

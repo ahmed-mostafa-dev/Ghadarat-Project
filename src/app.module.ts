@@ -11,6 +11,7 @@ import { AcademicsModule } from './academics/academics.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { CacheModule } from '@nestjs/cache-manager';
 import { redisStore } from 'cache-manager-redis-yet';
+import { VideosModule } from './videos/videos.module';
 
 
 
@@ -18,6 +19,7 @@ import { redisStore } from 'cache-manager-redis-yet';
   imports: [UsersModule,
      AuthModule,
      AcademicsModule,
+     VideosModule,
     ConfigModule.forRoot({
       isGlobal: true,
       ignoreEnvFile: process.env.NODE_ENV === 'production', 

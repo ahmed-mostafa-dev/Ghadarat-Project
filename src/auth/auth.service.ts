@@ -33,6 +33,7 @@ public async register(registerDto: RegisterDto){
         username: newUser.username,
         role: newUser.role
     };
+
     const accessToken = await this.jwtService.signAsync(payload)
 
     return {
@@ -41,7 +42,8 @@ public async register(registerDto: RegisterDto){
         user:{ 
             id: newUser.id,
             username: newUser.username,
-            role: newUser.role
+            role: newUser.role,
+            
         }
     };   
 }

@@ -60,7 +60,7 @@ export class VideosService {
     public async markAsUploaded(videoId: string, studentId: string): Promise<Video> {
     const video = await this.findOwnedVideoOrFail(videoId, studentId);
     if (video.status !== VideoStatus.PENDING) {
-      throw new BadRequestException('الفيديو غير قابل للتحديث');
+      throw new BadRequestException('الفيديو تم رفعه مسبقا');
     }
     video.status = VideoStatus.READY; 
     return this.videosRepository.save(video);
@@ -107,7 +107,7 @@ export class VideosService {
     return { deleted: true };
     }
 
-    // Get videos endpoint
+    // Get videos endpoint for student
     public async getVideos(studentId: string, query: QueryVideosDto) {
       const page = query.page ?? 1;
       const limit = query.limit ?? 10;
@@ -138,6 +138,42 @@ export class VideosService {
     totalPages: Math.ceil(total / limit),
   };
 }
+
+
+    public async getVideosByOthers( requesterRole: UserRole, query: QueryVideosDto){
+       
+        if (![ UserRole.ADMIN,UserRole.VERIFIER,UserRole.ASSESSOR].includes(requesterRole)) {
+    throw new ForbiddenException('غير مسموح لك بعرض الفيديوهات');
+  }
+
+     const page = query.page ?? 1;
+     const limit = query.limit ?? 10;
+
+     const qb = this.videosRepository.createQueryBuilder('video');
+
+     if (query.status) {
+       qb.andWhere('video.status = :status', {
+         status: query.status,
+       });
+     }
+
+     qb
+    .orderBy('video.createdAt', 'DESC')
+    .skip((page - 1) * limit)
+    .take(limit);
+
+     const [items, total] =
+    await qb.getManyAndCount();
+
+     return {
+    items,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+        };
+  }
+
 
   private async findVideoOrFail(videoId: string): Promise<Video> {
     const video = await this.videosRepository.findOne({

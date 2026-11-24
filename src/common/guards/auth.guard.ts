@@ -2,6 +2,7 @@ import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from
 import { Reflector } from "@nestjs/core";
 import { JwtService } from "@nestjs/jwt";
 import { IS_PUBLIC_KEY } from "../public.decorator";
+import { request } from "http";
 
 
 
@@ -28,13 +29,27 @@ export class AuthGuard implements CanActivate {
 
         const payload = await this.validateToken(token)
         if(!payload) throw new UnauthorizedException('ليس لديك صلاحية')
-        request['user'] = payload
+        request['user'] = {
+            ...payload,
+            id: payload.sub,
+            classroomId: payload.classroomId,
+        }
         return true
     }
 
 
 
-    private async validateToken(token: string): Promise<boolean>{
+// private async validateToken(token: string): Promise<any> {
+//   try {
+//     const payload = await this.jwtService.verifyAsync(token, {
+//       secret: process.env.JWT_SECRET,
+//     });
+//     return payload;
+//   } catch (error) {
+//     throw new UnauthorizedException('التوكن غير صالح');
+//   }
+// }
+    private async validateToken(token: string): Promise<any>{
         try{
            const payload = await this.jwtService.verifyAsync(token,
             {
