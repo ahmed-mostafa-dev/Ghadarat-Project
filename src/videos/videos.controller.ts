@@ -6,6 +6,8 @@ import { QueryVideosDto } from "./dtos/query-videos.dto";
 import { ConfirmUploadDto } from "./dtos/confirm-upload.dto";
 import { AuthGuard } from "../common/guards/auth.guard";
 import { Roles } from "../users/decorators/user-role.decorator";
+import { CurrentUser } from "../users/decorators/current-user.decorator";
+import type { JWTUserPayload } from "../common/types";
 
 @Controller('videos')
 export class VideosController {
@@ -22,7 +24,7 @@ export class VideosController {
     ) {
         return this.videosService.requestUpload({
             studentId: req.user.id,
-            classroomId: req.user.classroomId,
+            // classroomId: req.user.classroomId,
             competencyName: body.competencyName,
             title: body.title,
             fileSize: body.fileSize,
@@ -31,15 +33,15 @@ export class VideosController {
     }
 
     @UseGuards(AuthGuard)
-    @Roles(UserRole.ASSESSOR, UserRole.VERIFIER, UserRole.ADMIN)
+    @Roles(UserRole.STUDENT)
     @Patch('confirm-upload')
     public async confirmUpload(
         @Body() body: ConfirmUploadDto,
-        @Req() req: any
+        @CurrentUser() user: JWTUserPayload
     ) {
         return this.videosService.markAsUploaded(
             body.videoId,
-            req.user.id
+            user.sub
         );
     }
 
@@ -68,10 +70,10 @@ export class VideosController {
     @UseGuards(AuthGuard)
     @Roles(UserRole.ASSESSOR, UserRole.VERIFIER, UserRole.ADMIN)
     @Get('all-videos')
-    public async getAllVideos(@Query() query: QueryVideosDto, @Req() req: any) {
-        return this.videosService.getVideos(
-            req.user.id,
-            query
+    public async getAllVideos(@Query() query: QueryVideosDto, @CurrentUser() user: JWTUserPayload) {
+        return this.videosService.getVideosByOthers(
+           user.role as UserRole,
+           query
         );
     }
 

@@ -54,7 +54,7 @@ import { VideosModule } from './videos/videos.module';
       useClass: AuthGuard
     },
     {
-      provide: 'APP_GUARD',
+      provide: APP_GUARD,
       useClass: RolesGuard
     }
   ],

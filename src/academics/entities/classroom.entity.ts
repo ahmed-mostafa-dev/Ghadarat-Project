@@ -50,6 +50,6 @@ users: User[];
 @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date;
 
-@DeleteDateColumn({ type: 'timestamptz', nullable: true })
+@DeleteDateColumn({ type: 'timestamptz', nullable: true, name: 'deletedAt' })
   deletedAt: Date | null;
 }

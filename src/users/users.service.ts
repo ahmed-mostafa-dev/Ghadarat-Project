@@ -14,11 +14,14 @@ import { UserRole } from "../common/userRole.enum";
 
 @Injectable()
 export class UsersService {
+    private static readonly STAFF: UserRole[] = [
+        UserRole.ADMIN, 
+        UserRole.VERIFIER
+    ]
 
     constructor(
         @InjectRepository(User)
         private readonly userRepository: Repository<User>,
-        
     ) {}
 
     public findAllUsers() : Promise<User[]> {
@@ -56,14 +59,30 @@ export class UsersService {
      * @param dto update user dto
      * @returns updated user
      */
-    public async updateUser(id: string, dto: UpdateUserDto) {
-    const { username, password, name } = dto;
+    public async updateUser(id: string, dto: UpdateUserDto,
+        requester: JWTUserPayload
+    ) {
+    const { username, password, name, role } = dto;
     const user = await this.userRepository.findOne({ where: { id } });
     if (!user) throw new NotFoundException(`User id ${id} is not found`);
 
+        const isSelf = requester.sub === id;
+        const isAdmin = requester.role === UserRole.ADMIN || requester.role === UserRole.VERIFIER; 
+
+        if (!isSelf && !isAdmin) {
+            throw new ForbiddenException('غير مسموح بتعديل بيانات هذا المستخدم');
+        }
+
+
+    if(role !== undefined) {
+        if(!UsersService.STAFF.includes(role)) {
+            throw new ForbiddenException('لا يمكنك تغيير الدور');
+        }
+        user.role = role;
+    }
     if (username) {
         const existedUser = await this.userRepository.exists({
-            where: {  username, id: Not(id) } // لازم دي
+            where: {  username,   id: Not(id) } // لازم دي
         });
         if (existedUser) throw new ConflictException('Username already exists'); // Conflict مش NotFound
         user.username = username;
@@ -166,4 +185,13 @@ export class UsersService {
         } });
     }
 
+
+    public assertSelfOrStaff(targetId: string, requester: JWTUserPayload) { 
+        const requesterId = requester.id ?? requester.sub;
+         const isSelf = requesterId === targetId;
+          const isStaff = UsersService.STAFF.includes(requester.role as UserRole);
+           if (!isSelf && !isStaff) {
+             throw new ForbiddenException('ليس لديك صلاحية علي هذا المستخدم')
+           }
+    }
 }

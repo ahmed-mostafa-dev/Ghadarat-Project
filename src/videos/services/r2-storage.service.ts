@@ -1,5 +1,5 @@
 import { Injectable, BadRequestException } from "@nestjs/common";
-import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { ConfigService } from "@nestjs/config";
 import { v4 as uuidv4 } from 'uuid';
@@ -13,6 +13,8 @@ const VIDEO_MIME_TYPES: Record<string, string> = {
     'video/mp4': 'mp4',
     'video/webm': 'webm'
 };
+
+const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
 
 @Injectable()
 export class R2StorageService {
@@ -34,11 +36,14 @@ export class R2StorageService {
     }
 
     // Generate Upload URL
-    public async generateUploadUrl( fileKey: string, contentType: string): Promise<string> {
+    public async generateUploadUrl( fileKey: string,
+         contentType: string,
+        fileSize: number ): Promise<string> {
         const command = new PutObjectCommand({
             Bucket: this.bucketName,
             Key: fileKey,
-            ContentType: contentType
+            ContentType: contentType,
+            ContentLength: fileSize,
         });
         return getSignedUrl(this.s3Client, command, { expiresIn: UPLOAD_EXPIRATION_URL });
     }
@@ -53,6 +58,16 @@ export class R2StorageService {
        return getSignedUrl(this.s3Client, command, { expiresIn: PLAYBACK_EXPIRATION_URL });
     }
 
+    public async getObjectSize(fileKey: string): Promise<number | null> { 
+        try { 
+            const res = await this.s3Client.send( 
+                new HeadObjectCommand({ Bucket: this.bucketName, Key: fileKey }), 
+            ); 
+            return res.ContentLength ?? null; 
+        } catch { 
+            return null; 
+        } 
+    }
 
     // Delete Video
     public async deleteVideo(fileKey: string): Promise<void> {

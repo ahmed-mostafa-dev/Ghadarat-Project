@@ -7,12 +7,14 @@ import { AuthGuard } from "../common/guards/auth.guard";
 import { CreateAcademicYearDto } from "./dtos/create-academic-year.dto";
 import { QueryClassroomDto } from "./dtos/query-classroom.dto";
 import { UpdateClassroomDto } from "./dtos/update-classroom.dto";
-import { CacheInterceptor, CacheTTL } from "@nestjs/cache-manager";
 import { UpdateAcademicYearDto } from "./dtos/update-academic-year.dto";
 import { AssignStudentsDto } from "./dtos/assign-students.dto";
+import { UserRole } from "../common/userRole.enum";
+import { Roles } from "../users/decorators/user-role.decorator";
 
 @UseGuards(AuthGuard)
 @Controller('academics')
+@Roles(UserRole.ADMIN, UserRole.VERIFIER)
 export class AcademicsController {
     constructor(
         private readonly academicsService: AcademicsService
@@ -22,8 +24,8 @@ export class AcademicsController {
     // Classroom Routes
     //===================================================================
     @Post('classroom')
-    public async createClassroom(@Body() body: CreateClassroomDto, @CurrentUser() payload: types.JWTUserPayload) {
-        return this.academicsService.createClassroom(body, payload.sub);
+    public async createClassroom(@Body() body: CreateClassroomDto) {
+        return this.academicsService.createClassroom(body);
     }
 
     // new
@@ -33,18 +35,21 @@ export class AcademicsController {
     }
 
     @Get('classroom')
+    @Roles(UserRole.ADMIN, UserRole.VERIFIER, UserRole.ASSESSOR)
     public async getClassroom(@Query() dto: QueryClassroomDto){
         return this.academicsService.getClassroom(dto);
     }
 
 
     @Get('classroom/:id')
+    @Roles(UserRole.ADMIN, UserRole.VERIFIER, UserRole.ASSESSOR)
     public async getClassroomById(@Param('id', new ParseUUIDPipe()) id: string){
         return this.academicsService.getClassroomById(id);
     }
 
     // new
     @Get('classroom/:id/students')
+    @Roles(UserRole.ADMIN, UserRole.VERIFIER, UserRole.ASSESSOR)
     public async getStudentsByClassroomId(@Param('id', new ParseUUIDPipe()) id: string) {
         return this.academicsService.getStudentsByClassroomId(id);
     }
@@ -71,6 +76,7 @@ export class AcademicsController {
 
 
     @Get('academic-year')
+    @Roles(UserRole.ADMIN, UserRole.VERIFIER, UserRole.ASSESSOR, UserRole.STUDENT)
     public async getAllAcademicYears(
         @Query('name') name?:string,
         @Query('startDate') startDate?:string,
@@ -86,6 +92,7 @@ export class AcademicsController {
 
 
     @Get('academic-year/:id')
+    @Roles(UserRole.ADMIN, UserRole.VERIFIER, UserRole.ASSESSOR)
     public async getAcademicYearById(@Param('id', new ParseUUIDPipe()) id: string) {
         return this.academicsService.getAcademicYearById(id);
     }

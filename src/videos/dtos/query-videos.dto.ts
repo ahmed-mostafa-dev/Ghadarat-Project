@@ -1,4 +1,4 @@
-import { IsOptional, IsInt, Min, IsEnum, Max } from 'class-validator';
+import { IsOptional, IsInt, Min, IsEnum, Max, IsUUID } from 'class-validator';
 import { Type } from 'class-transformer';
 import { VideoStatus } from '../enums/video-status.enum';
 
@@ -19,4 +19,13 @@ export class QueryVideosDto {
   @IsOptional()
   @IsEnum(VideoStatus)
   status?: VideoStatus;
+
+
+  @IsOptional()
+  @IsUUID()
+  studentId?: string;
+  
+  @IsOptional()
+  @IsUUID()
+  classroomId?: string;
 }

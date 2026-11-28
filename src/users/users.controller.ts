@@ -15,11 +15,13 @@ export class UsersController {
 constructor(private readonly usersService: UsersService){}
 
 @Get('search/students')
+@Roles(UserRole.ASSESSOR, UserRole.VERIFIER, UserRole.ADMIN)
 public async searchStudents(@Query('name') name: string){
     return await this.usersService.searchStudents(name);
 }
 
 @Get()
+@Roles(UserRole.ADMIN, UserRole.VERIFIER)
 public getAllUsers() {
     return this.usersService.findAllUsers();
 }
@@ -31,10 +33,17 @@ public createUser( @Body() payload: CreateUserDto) {
     return this.usersService.createUser(payload);
 }
 
+@Get('me') 
+public getMe(@CurrentUser() user: JWTUserPayload) {
+     return this.usersService.getUserById(user.sub);
+     }
+
 
 @Get(':id')
 public getUserById(
-    @Param('id',ParseUUIDPipe) id: string): Promise<User> {
+    @Param('id',ParseUUIDPipe) id: string,
+    @CurrentUser() requester: JWTUserPayload) {
+    this.usersService.assertSelfOrStaff(id, requester);
     return this.usersService.getUserById(id);
 }
 
@@ -42,8 +51,10 @@ public getUserById(
 @Patch(':id')
 public updateUser(
     @Param('id', new ParseUUIDPipe ()) id: string,
-    @Body() payload: UpdateUserDto) {
-    return this.usersService.updateUser(id, payload);
+    @Body() payload: UpdateUserDto,
+    @CurrentUser() requester: JWTUserPayload) {
+    this.usersService.assertSelfOrStaff(id, requester); 
+    return this.usersService.updateUser(id, payload, requester);
 }
 
 

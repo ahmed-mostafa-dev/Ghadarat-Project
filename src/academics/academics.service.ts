@@ -28,37 +28,76 @@ constructor(
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
 ) {}
     
-public async createClassroom(body:CreateClassroomDto, userId:string){
-const user = await this.usersService.getUserById(userId);
-if(!user) throw new NotFoundException();
+// public async createClassroom(body:CreateClassroomDto){
+// // const user = await this.usersService.getUserById(userId);
+// // if(!user) throw new NotFoundException();
 
-await this.getAcademicYearById(body.academicYearId);
+// await this.getAcademicYearById(body.academicYearId);
 
-const existingClassroom = await this.classroomRepository.findOne({
-    where: {
-        name: body.name,
-        gradeLevel: body.gradeLevel,
-        term: body.term,
-        track: body.track,
-        academicYear: { id: body.academicYearId }
-    }
-});
-if(!existingClassroom) {
-    const classroom = this.classroomRepository.create({
-        ...body,
-        users:[user]
-    });
-    const savedClassroom = await this.classroomRepository.save(classroom);
+// const existingClassroom = await this.classroomRepository.findOne({
+//     where: {
+//         name: body.name,
+//         gradeLevel: body.gradeLevel,
+//         term: body.term,
+//         track: body.track,
+//         academicYear: { id: body.academicYearId }
+//     }
+// });
+// if(!existingClassroom) {
+//     const classroom = this.classroomRepository.create({
+//         ...body,
+//         academicYear: { id: body.academicYearId }
+//     });
+//     const savedClassroom = await this.classroomRepository.save(classroom);
 
-    await this.bumpClassroomsVersion();
-    return savedClassroom;
-}else{
-    throw new BadRequestException('Classroom already exists');
-}
+//     await this.bumpClassroomsVersion();
+//     return savedClassroom;
+// }else{
+//     throw new ConflictException('Classroom already exists');
+// }
 
-}
+// }
+
+
 
 // new
+
+public async createClassroom(body: CreateClassroomDto) {
+  await this.getAcademicYearById(body.academicYearId);
+
+  const existing = await this.classroomRepository.findOne({
+    where: {
+      name: body.name,
+      gradeLevel: body.gradeLevel,
+      term: body.term,
+      track: body.track,
+      academicYear: { id: body.academicYearId }
+    }
+  });
+  if (existing) throw new ConflictException('Classroom already exists');
+
+
+  try {
+    const saved = await this.classroomRepository.save(
+      this.classroomRepository.create({
+        ...body,
+        academicYear: { id: body.academicYearId }
+      })
+    );
+
+    await this.bumpClassroomsVersion();
+    return saved;
+
+  } catch (err) {
+
+    if ((err as any)?.code === '23505') {
+      throw new ConflictException('Classroom already exists');
+    }
+    throw err;
+  }
+}
+
+
 public async assignStudentsToClassroom(
   classroomId: string,
   body: AssignStudentsDto,

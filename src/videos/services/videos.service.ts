@@ -6,21 +6,26 @@ import { Repository } from "typeorm";
 import { VideoStatus } from "../enums/video-status.enum";
 import { UserRole } from "../../common/userRole.enum";
 import { QueryVideosDto } from "../dtos/query-videos.dto";
+import { MAX_VIDEO_SIZE } from "../../common/constants";
+import { User } from "../../users/users.entity";
 
 
 export interface RequestUploadInput {
   studentId: string;
-  classroomId: string;
   competencyName: string;
   title: string;
   fileSize: number;
   contentType: string;
 }
 
+
+
 @Injectable()
 export class VideosService {
     private readonly logger = new Logger(VideosService.name);
     constructor(
+        @InjectRepository(User)
+        private readonly usersRepository: Repository<User>,
         @InjectRepository(Video)
         private readonly videosRepository: Repository<Video>,
         private readonly r2StorageService: R2StorageService,
@@ -28,17 +33,25 @@ export class VideosService {
     
     // Request upload endpoint
     public async requestUpload(input: RequestUploadInput) {
-         
-        const fileKey = this.r2StorageService.generateVideoKey(input.contentType);
+    
+    const student = await this.usersRepository.findOne({ 
+      where: {id: input.studentId},
+      select: {id: true, classroomId: true},
+    })
 
-         
+    if (!student?.classroomId) {
+      throw new BadRequestException('لازم تكون مسجل في فصل قبل رفع الفيديو');
+    }
+    
+    const fileKey = this.r2StorageService.generateVideoKey(input.contentType);     
     const uploadUrl = await this.r2StorageService.generateUploadUrl(
       fileKey,
       input.contentType,
+      input.fileSize,
     );
     const video = this.videosRepository.create({
       studentId: input.studentId,
-      classroomId: input.classroomId,
+      classroomId: student.classroomId,
       competencyName: input.competencyName,
       title: input.title,
       fileKey,
@@ -62,6 +75,17 @@ export class VideosService {
     if (video.status !== VideoStatus.PENDING) {
       throw new BadRequestException('الفيديو تم رفعه مسبقا');
     }
+    const size = await this.r2StorageService.getObjectSize(video.fileKey); 
+    if (size === null) { 
+      throw new BadRequestException('فشل في التحقق من حجم الملف');
+    }
+    if(size > MAX_VIDEO_SIZE) {
+      await this.r2StorageService.deleteVideo(video.fileKey);
+      await this.videosRepository.softRemove(video);
+      throw new BadRequestException('حجم الفيديو يتجاوز الحد المسموح به');
+    }
+
+    video.fileSize = size;
     video.status = VideoStatus.READY; 
     return this.videosRepository.save(video);
     }
@@ -146,17 +170,21 @@ export class VideosService {
     throw new ForbiddenException('غير مسموح لك بعرض الفيديوهات');
   }
 
+
      const page = query.page ?? 1;
      const limit = query.limit ?? 10;
 
      const qb = this.videosRepository.createQueryBuilder('video');
 
-     if (query.status) {
-       qb.andWhere('video.status = :status', {
-         status: query.status,
-       });
-     }
+    const status = query.status ?? VideoStatus.READY;  
+    qb.andWhere('video.status = :status', {
+      status,
+    });
 
+
+     if (query.classroomId) qb.andWhere('video.classroomId = :c', { c: query.classroomId });
+     
+     if (query.studentId) qb.andWhere('video.studentId = :s', { s: query.studentId });
      qb
     .orderBy('video.createdAt', 'DESC')
     .skip((page - 1) * limit)

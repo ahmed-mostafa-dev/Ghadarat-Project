@@ -11,7 +11,7 @@ export const dataSourceOptions: DataSourceOptions = {
     ssl: {rejectUnauthorized: false},
     entities: ['dist/**/*.entity{.ts,.js}'],
     migrations: ['dist/database/migrations/*.js'],
-    synchronize: process.env.NODE_ENV !== 'production',
+    synchronize: false,
     logging: process.env.NODE_ENV !== 'production',
 
 // connection pool configuration
